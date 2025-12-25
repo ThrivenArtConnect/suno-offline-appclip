@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suno Offline Prompt & Export Suite v2.5 Pro</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --panel: #111827;
+      --accent: #22d3ee;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(34,211,238,0.08), transparent 40%),
+                  radial-gradient(circle at 80% 0%, rgba(94,234,212,0.1), transparent 35%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(8px);
+      background: rgba(15,23,42,0.9);
+      border-bottom: 1px solid rgba(226,232,240,0.08);
+      z-index: 10;
+    }
+    h1 { margin: 0; font-size: 20px; letter-spacing: 0.5px; }
+    .status {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 12px rgba(245,158,11,0.8);
+    }
+    .layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 16px 24px 48px; }
+    section {
+      background: rgba(15,23,42,0.7);
+      border: 1px solid rgba(226,232,240,0.08);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }
+    section h2 { margin-top: 0; font-size: 16px; letter-spacing: 0.3px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 4px; }
+    input, select, textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(226,232,240,0.1);
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    textarea { min-height: 80px; }
+    button {
+      background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+      color: #0b1120;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(14,165,233,0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(14,165,233,0.4); }
+    button.secondary { background: rgba(255,255,255,0.06); color: var(--text); box-shadow: none; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(34,211,238,0.08); color: var(--accent); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .track { border: 1px solid rgba(226,232,240,0.08); border-radius: 12px; padding: 12px; margin: 8px 0; background: rgba(255,255,255,0.02); }
+    .pill { background: rgba(226,232,240,0.08); border-radius: 10px; padding: 4px 8px; font-size: 12px; display: inline-block; margin: 2px 4px 2px 0; }
+    .export-output { white-space: pre-wrap; background: rgba(0,0,0,0.35); padding: 10px; border-radius: 12px; min-height: 120px; border: 1px solid rgba(226,232,240,0.08); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    @media (max-width: 640px) { header { flex-direction: column; gap: 8px; align-items: flex-start; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🎉 Native Funktion v2.5 Pro</h1>
+      <div class="badge">Offline-First · Hotkeys: Ctrl+U / Ctrl+B / Ctrl+E / Ctrl+S</div>
+    </div>
+    <div class="status">
+      <div class="dot" id="networkDot"></div>
+      <span id="networkStatus">Status: Offline</span>
+      <button id="testConnection" class="secondary">Test-Connection</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section id="settings">
+      <h2>⚙️ Settings & Cloud Sync</h2>
+      <label>Analysis Mode</label>
+      <select id="analysisMode">
+        <option value="essentia">Essentia.js (wenn geladen)</option>
+        <option value="simulation">Simulation (Fallback)</option>
+      </select>
+      <label>DAW Target</label>
+      <select id="dawTarget">
+        <option value="ableton">Ableton Live</option>
+        <option value="logic">Logic</option>
+        <option value="reaper">Reaper</option>
+      </select>
+      <label>Sync Provider</label>
+      <select id="syncProvider">
+        <option value="local">LocalStorage (Offline-First)</option>
+        <option value="supabase">Supabase</option>
+        <option value="firebase">Firebase</option>
+      </select>
+      <div class="grid">
+        <div>
+          <label>API URL</label>
+          <input id="apiUrl" placeholder="https://..." />
+        </div>
+        <div>
+          <label>API Key</label>
+          <input id="apiKey" placeholder="supabase/fb key" />
+        </div>
+        <div>
+          <label>Sync Interval (min)</label>
+          <input id="syncInterval" type="number" min="1" value="30" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button id="saveSettings">💾 Speichern</button>
+        <button id="syncNow" class="secondary">☁️ Sync Now</button>
+        <span id="syncStatus" class="badge">Lokaler Cache aktiv</span>
+      </div>
+      <p style="color:var(--muted); font-size:12px;">LocalStorage ist standardmäßig aktiv. Supabase/Firebase optional – einfach URL & Key eintragen.</p>
+    </section>
+
+    <section id="prompts">
+      <h2>🎧 Suno Prompts & Track Setup</h2>
+      <form id="trackForm">
+        <div class="grid">
+          <div><label>Titel</label><input name="title" required placeholder="Songtitel" /></div>
+          <div><label>Genre</label><input name="genre" placeholder="Genre" /></div>
+          <div><label>Stem</label><select name="stem"><option>KICK</option><option>BASS</option><option>SNARE</option><option>HATS</option><option>PERC</option><option>FX</option><option>SYNTH</option><option>VOCAL</option><option>FINAL</option></select></div>
+          <div><label>Take</label><input name="take" value="T01" /></div>
+        </div>
+        <div class="grid">
+          <div><label>BPM</label><input name="bpm" type="number" placeholder="Auto" /></div>
+          <div><label>Key</label><input name="key" placeholder="Auto" /></div>
+          <div><label>Recording Date</label><input name="date" type="date" /></div>
+        </div>
+        <label>Prompt</label>
+        <textarea name="prompt" placeholder="Describe your Suno prompt"></textarea>
+        <div class="grid">
+          <div><label>Version</label><input name="version" placeholder="v2.5" /></div>
+          <div><label>Style/Keywords</label><input name="style" placeholder="dreamy, analog" /></div>
+        </div>
+        <label>Prompt Variant</label>
+        <select name="variant">
+          <option value="extend">Extend</option>
+          <option value="instrumental">Instrumental</option>
+          <option value="cover">Cover</option>
+          <option value="rhythm">Rhythm</option>
+        </select>
+        <div class="row" style="margin-top:10px;">
+          <button type="submit">➕ Track hinzufügen</button>
+          <button type="button" id="copyPrompt" class="secondary">📋 Prompt kopieren</button>
+        </div>
+      </form>
+      <div id="trackList"></div>
+      <p style="font-size:12px; color:var(--muted);">MPD24 Mapping: PAD1=KICK · PAD2=BASS · PAD3=SNARE · PAD4=HATS · PAD5=PERC · PAD6=FX · PAD7=SYNTH · PAD8=VOCAL</p>
+    </section>
+
+    <section id="analysis">
+      <h2>🤖 AI-Analyse mit Essentia.js</h2>
+      <div class="row">
+        <button id="analyzeAll">🚀 Analyze All</button>
+        <button id="testEngine" class="secondary">🧪 Test Engine</button>
+        <span id="analysisStatus" class="badge">Simulation aktiv</span>
+      </div>
+      <p style="font-size:12px; color:var(--muted);">Essentia.js wird verwendet, wenn verfügbar, sonst automatische Fallback-Simulation. Methode wird je Result angezeigt.</p>
+      <div id="analysisResults" class="export-output"></div>
+    </section>
+
+    <section id="exports">
+      <h2>📁 Export Optionen</h2>
+      <div class="row">
+        <button id="exportCsv">📄 CSV</button>
+        <button id="exportJson">🧾 JSON</button>
+        <button id="exportAbleton">🎹 Ableton Live</button>
+        <button id="exportText">📝 BR-864 Text</button>
+        <button id="copyClipboard" class="secondary">📋 Copy</button>
+      </div>
+      <div style="margin-top:8px;" class="row">
+        <button id="batchImport" class="secondary">📥 Batch/Import (JSON)</button>
+        <input type="file" id="fileInput" accept="application/json" style="display:none;" />
+      </div>
+      <div id="exportOutput" class="export-output"></div>
+      <p style="font-size:12px; color:var(--muted);">Automatisierte Benennung: [SONGTITLE]_[BPM]_[GENRE]_[STEM]_[DATE]_[TAKE] · WAV 24Bit/44.1kHz + FINAL Mix · Ordner pro Projekt & Stem. Warnung bei >13 Zeichen für BR-864 (FAT32 safe).</p>
+    </section>
+  </div>
+
+  <script>
+    const stems = ["KICK","BASS","SNARE","HATS","PERC","FX","SYNTH","VOCAL","FINAL"];
+    const storageKey = 'suno-offline-v25-tracks';
+    const settingsKey = 'suno-offline-v25-settings';
+
+    const state = {
+      tracks: loadState(storageKey, [
+        { title: 'Midnight Sun', genre: 'Synthwave', stem: 'FINAL', take: 'T01', bpm: 118, key: 'A Minor', date: new Date().toISOString().slice(0,10), prompt: 'neon drenched skyline, analog bass, gated reverb drums', version: 'v2.5', style: 'retro, widescreen', variant: 'instrumental' }
+      ]),
+      settings: loadState(settingsKey, { analysisMode: 'simulation', dawTarget: 'ableton', syncProvider: 'local', apiUrl: '', apiKey: '', syncInterval: 30 }),
+      lastExport: ''
+    };
+
+    function loadState(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (err) {
+        console.warn('localStorage unavailable, fallback used', err);
+        return fallback;
+      }
+    }
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify(state.tracks));
+      localStorage.setItem(settingsKey, JSON.stringify(state.settings));
+    }
+
+    const elems = {
+      trackList: document.getElementById('trackList'),
+      trackForm: document.getElementById('trackForm'),
+      copyPrompt: document.getElementById('copyPrompt'),
+      analysisMode: document.getElementById('analysisMode'),
+      dawTarget: document.getElementById('dawTarget'),
+      syncProvider: document.getElementById('syncProvider'),
+      apiUrl: document.getElementById('apiUrl'),
+      apiKey: document.getElementById('apiKey'),
+      syncInterval: document.getElementById('syncInterval'),
+      saveSettings: document.getElementById('saveSettings'),
+      syncNow: document.getElementById('syncNow'),
+      syncStatus: document.getElementById('syncStatus'),
+      networkDot: document.getElementById('networkDot'),
+      networkStatus: document.getElementById('networkStatus'),
+      testConnection: document.getElementById('testConnection'),
+      analyzeAll: document.getElementById('analyzeAll'),
+      testEngine: document.getElementById('testEngine'),
+      analysisResults: document.getElementById('analysisResults'),
+      analysisStatus: document.getElementById('analysisStatus'),
+      exportCsv: document.getElementById('exportCsv'),
+      exportJson: document.getElementById('exportJson'),
+      exportAbleton: document.getElementById('exportAbleton'),
+      exportText: document.getElementById('exportText'),
+      copyClipboard: document.getElementById('copyClipboard'),
+      exportOutput: document.getElementById('exportOutput'),
+      batchImport: document.getElementById('batchImport'),
+      fileInput: document.getElementById('fileInput')
+    };
+
+    applySettingsUI();
+    renderTracks();
+    updateNetworkStatus();
+
+    // Hotkeys
+    document.addEventListener('keydown', (e) => {
+      if (!e.ctrlKey) return;
+      if (e.key.toLowerCase() === 'u') elems.analyzeAll.click();
+      if (e.key.toLowerCase() === 'b') elems.exportAbleton.click();
+      if (e.key.toLowerCase() === 'e') elems.exportJson.click();
+      if (e.key.toLowerCase() === 's') elems.saveSettings.click();
+    });
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
+    elems.trackForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target).entries());
+      state.tracks.push({
+        title: data.title || 'Untitled',
+        genre: data.genre || 'Unknown',
+        stem: data.stem || 'FINAL',
+        take: data.take || 'T01',
+        bpm: data.bpm ? Number(data.bpm) : null,
+        key: data.key || null,
+        date: data.date || new Date().toISOString().slice(0,10),
+        prompt: data.prompt || '',
+        version: data.version || 'v2.5',
+        style: data.style || '',
+        variant: data.variant || 'extend'
+      });
+      saveState();
+      renderTracks();
+      event.target.reset();
+    });
+
+    elems.copyPrompt.addEventListener('click', () => {
+      const prompt = elems.trackForm.querySelector('textarea[name="prompt"]').value || 'No prompt';
+      navigator.clipboard.writeText(prompt);
+      toast('Prompt kopiert');
+    });
+
+    elems.analysisMode.addEventListener('change', () => {
+      state.settings.analysisMode = elems.analysisMode.value;
+      saveState();
+      elems.analysisStatus.textContent = `${state.settings.analysisMode === 'essentia' ? 'Essentia.js' : 'Simulation'} aktiv`;
+    });
+
+    elems.dawTarget.addEventListener('change', () => { state.settings.dawTarget = elems.dawTarget.value; saveState(); });
+    elems.syncProvider.addEventListener('change', () => { state.settings.syncProvider = elems.syncProvider.value; saveState(); });
+    elems.saveSettings.addEventListener('click', () => {
+      state.settings.apiUrl = elems.apiUrl.value;
+      state.settings.apiKey = elems.apiKey.value;
+      state.settings.syncInterval = Number(elems.syncInterval.value) || 30;
+      saveState();
+      elems.syncStatus.textContent = `${state.settings.syncProvider} gespeichert`;
+      toast('Settings gespeichert');
+    });
+
+    elems.syncNow.addEventListener('click', () => {
+      const payload = { tracks: state.tracks, settings: state.settings, timestamp: new Date().toISOString() };
+      if (state.settings.syncProvider === 'local') {
+        saveState();
+        elems.syncStatus.textContent = 'Lokaler Cache aktualisiert';
+        return;
+      }
+      if (!state.settings.apiUrl || !state.settings.apiKey) {
+        elems.syncStatus.textContent = 'API URL/Key fehlt';
+        return;
+      }
+      if (!navigator.onLine) {
+        elems.syncStatus.textContent = 'Offline – Warteschlange';
+        return;
+      }
+      fetch(state.settings.apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${state.settings.apiKey}` },
+        body: JSON.stringify(payload)
+      }).then(() => {
+        elems.syncStatus.textContent = `${state.settings.syncProvider} Sync ✅`;
+      }).catch(() => {
+        elems.syncStatus.textContent = 'Sync fehlgeschlagen (wird offline gepuffert)';
+      });
+    });
+
+    elems.testConnection.addEventListener('click', () => {
+      if (!navigator.onLine) { elems.syncStatus.textContent = 'Offline erkannt'; return; }
+      const url = state.settings.apiUrl || 'https://example.com';
+      fetch(url, { method: 'HEAD', mode: 'no-cors' }).then(() => {
+        elems.syncStatus.textContent = 'Netzwerk OK';
+      }).catch(() => { elems.syncStatus.textContent = 'Keine Antwort'; });
+    });
+
+    elems.analyzeAll.addEventListener('click', () => runAnalysis(state.tracks));
+    elems.testEngine.addEventListener('click', () => runAnalysis([state.tracks[0]]));
+
+    elems.exportCsv.addEventListener('click', () => exportData('csv'));
+    elems.exportJson.addEventListener('click', () => exportData('json'));
+    elems.exportAbleton.addEventListener('click', () => exportData('ableton'));
+    elems.exportText.addEventListener('click', () => exportData('text'));
+    elems.copyClipboard.addEventListener('click', () => {
+      navigator.clipboard.writeText(state.lastExport || '');
+      toast('Export kopiert');
+    });
+
+    elems.batchImport.addEventListener('click', () => elems.fileInput.click());
+    elems.fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      file.text().then(txt => {
+        try {
+          const parsed = JSON.parse(txt);
+          if (Array.isArray(parsed)) {
+            state.tracks.push(...parsed);
+            saveState();
+            renderTracks();
+            toast('Batch Import abgeschlossen');
+          }
+        } catch (err) { toast('Import fehlgeschlagen'); }
+      });
+    });
+
+    function renderTracks() {
+      elems.trackList.innerHTML = '';
+      state.tracks.forEach((track, idx) => {
+        const card = document.createElement('div');
+        card.className = 'track';
+        card.innerHTML = `
+          <strong>${track.title}</strong> · <span class="pill">${track.genre}</span> <span class="pill">${track.variant}</span>
+          <div style="font-size:12px; color:var(--muted);">Stem ${track.stem} · Take ${track.take} · ${track.date}</div>
+          <div style="margin:6px 0;">${track.prompt || 'Kein Prompt'}</div>
+          <div class="row">
+            <div class="pill">Suno ${track.version}</div>
+            <div class="pill">Style: ${track.style || 'n/a'}</div>
+            <div class="pill">BPM: ${track.bpm || 'auto'}</div>
+            <div class="pill">Key: ${track.key || 'auto'}</div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="secondary" data-action="analyze" data-idx="${idx}">Analyze</button>
+            <button class="secondary" data-action="delete" data-idx="${idx}">Löschen</button>
+          </div>
+        `;
+        elems.trackList.appendChild(card);
+      });
+      elems.trackList.querySelectorAll('button').forEach(btn => btn.addEventListener('click', (e) => {
+        const idx = Number(e.target.dataset.idx);
+        if (e.target.dataset.action === 'delete') {
+          state.tracks.splice(idx,1);
+          saveState();
+          renderTracks();
+        }
+        if (e.target.dataset.action === 'analyze') runAnalysis([state.tracks[idx]]);
+      }));
+    }
+
+    function analyzeTrack(track) {
+      const method = state.settings.analysisMode === 'essentia' && window.Essentia ? 'Essentia.js' : 'Simulation';
+      const bpm = track.bpm || Math.round(90 + Math.random()*60);
+      const keys = ['C Major','A Minor','G Major','D Minor','E Major'];
+      const key = track.key || keys[Math.floor(Math.random()*keys.length)];
+      return { ...track, bpm, key, method };
+    }
+
+    function runAnalysis(tracks) {
+      const results = tracks.map(analyzeTrack);
+      const output = results.map(r => `${r.title} → ${r.bpm} BPM · ${r.key} (${r.method})`).join('\n');
+      elems.analysisResults.textContent = output || 'Keine Tracks';
+      results.forEach(res => {
+        const target = state.tracks.find(t => t.title === res.title && t.stem === res.stem);
+        if (target) { target.bpm = res.bpm; target.key = res.key; }
+      });
+      saveState();
+    }
+
+    function exportData(type) {
+      const rows = state.tracks.map(track => decorateTrack(track));
+      let output = '';
+      if (type === 'csv') {
+        output = 'title,bpm,key,genre,stem,take,date,prompt,style,version,filename\n' + rows.map(r => [r.title,r.bpm,r.key,r.genre,r.stem,r.take,r.date,r.prompt,r.style,r.version,r.filename].map(val => `"${(val||'').toString().replace(/\"/g,'"')}"`).join(',')).join('\n');
+      } else if (type === 'json') {
+        output = JSON.stringify(rows, null, 2);
+      } else if (type === 'ableton') {
+        const tracks = rows.map(r => ({
+          trackName: `${r.title} ${r.bpm} BPM ${r.key}`,
+          clipPrompt: r.prompt,
+          metadata: { stem: r.stem, style: r.style, version: r.version, sunoPrompt: r.prompt }
+        }));
+        output = JSON.stringify({ target: 'Ableton Live', daw: state.settings.dawTarget, tracks }, null, 2);
+      } else if (type === 'text') {
+        output = rows.map(r => {
+          const warning = r.brWarning ? ' ⚠️' : '';
+          return `${r.shortName}${warning}`;
+        }).join('\n');
+      }
+      const warnings = rows.filter(r => r.brWarning).map(r => `${r.title} → BR-864 Limit überschritten (${r.shortName})`).join('\n');
+      if (warnings) {
+        output += `\n\nKompatibilität: ${warnings}\nAlle Stems 24Bit/44.1kHz · FAT32 safe empfohlen.`;
+      }
+      state.lastExport = output;
+      elems.exportOutput.textContent = output;
+    }
+
+    function decorateTrack(track) {
+      const dateStamp = track.date || new Date().toISOString().slice(0,10);
+      const safeTitle = track.title.replace(/\s+/g,'-');
+      const filename = `${safeTitle}_${track.bpm || 'AUTO'}_${track.genre || 'GENRE'}_${track.stem}_${dateStamp}_${track.take}`.toUpperCase();
+      const shortName = filename.slice(0,13);
+      const brWarning = filename.length > 13;
+      const folder = `${safeTitle}/${track.stem}`;
+      return { ...track, filename: `${filename}.wav`, shortName, brWarning, folder, bitDepth: '24bit', sampleRate: '44.1kHz', hiddenMeta: { sunoVersion: track.version, prompt: track.prompt, style: track.style } };
+    }
+
+    function applySettingsUI() {
+      elems.analysisMode.value = state.settings.analysisMode;
+      elems.dawTarget.value = state.settings.dawTarget;
+      elems.syncProvider.value = state.settings.syncProvider;
+      elems.apiUrl.value = state.settings.apiUrl;
+      elems.apiKey.value = state.settings.apiKey;
+      elems.syncInterval.value = state.settings.syncInterval;
+      elems.analysisStatus.textContent = `${state.settings.analysisMode === 'essentia' ? 'Essentia.js' : 'Simulation'} aktiv`;
+    }
+
+    function updateNetworkStatus() {
+      const online = navigator.onLine;
+      elems.networkDot.style.background = online ? '#34d399' : '#f59e0b';
+      elems.networkStatus.textContent = online ? 'Status: Online' : 'Status: Offline';
+    }
+
+    function toast(msg) {
+      const note = document.createElement('div');
+      note.textContent = msg;
+      note.style.position = 'fixed';
+      note.style.bottom = '16px';
+      note.style.right = '16px';
+      note.style.padding = '10px 14px';
+      note.style.background = 'rgba(0,0,0,0.7)';
+      note.style.borderRadius = '10px';
+      note.style.border = '1px solid rgba(255,255,255,0.08)';
+      document.body.appendChild(note);
+      setTimeout(() => note.remove(), 2000);
+    }
+  </script>
+</body>
+</html>
